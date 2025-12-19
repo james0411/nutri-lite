@@ -1,19 +1,18 @@
 {
   "name": "nutri-lite",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "NutriSales CRM Project",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
-  "author": "",
+  "author": "james0411",
   "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "@supabase/supabase-js": "^2.89.0",
+    "@supabase/supabase-js": "^2.47.10",
     "cors": "^2.8.5",
-    "express": "^5.2.1"
+    "express": "^4.21.2"
   }
 }
