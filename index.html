@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Nutri-Lite CRM (进阶版)</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f4f7f6; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; color: white; }
+        .btn-add { background: #28a745; }
+        .btn-update { background: #ffc107; color: #333; }
+        .product-card { border-bottom: 1px solid #eee; padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
+        .actions { display: flex; gap: 5px; }
+        .btn-del { background: #dc3545; font-size: 12px; }
+        .btn-edit { background: #007bff; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Nutri-Lite 产品管理</h1>
+        
+        <div class="input-group">
+            <input type="text" id="pName" placeholder="品名">
+            <input type="number" id="pPrice" placeholder="价格">
+            <button id="mainBtn" class="btn-add" onclick="handleAction()">提交到仓库</button>
+        </div>
+
+        <div id="displayArea">加载中...</div>
+    </div>
+
+    <script>
+        let currentEditId = null; // 💡 记录当前正在修改哪个产品的 ID
+
+        // 1. 获取列表
+        async function refreshList() {
+            const res = await fetch('http://localhost:3000/products');
+            const data = await res.json();
+            document.getElementById('displayArea').innerHTML = data.map(item => `
+                <div class="product-card">
+                    <div><strong>${item.name}</strong> - $${item.price}</div>
+                    <div class="actions">
+                        <button class="btn-edit" onclick="startEdit(${item.id}, '${item.name}', ${item.price})">编辑</button>
+                        <button class="btn-del" onclick="deleteProduct(${item.id})">删除</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 2. 准备编辑：点击“编辑”按钮时，把数据填回输入框
+        function startEdit(id, name, price) {
+            currentEditId = id;
+            document.getElementById('pName').value = name;
+            document.getElementById('pPrice').value = price;
+            const btn = document.getElementById('mainBtn');
+            btn.innerText = "保存修改";
+            btn.className = "btn-update";
+        }
+
+        // 3. 核心逻辑：判断是“新增”还是“修改”
+        async function handleAction() {
+            const name = document.getElementById('pName').value;
+            const price = document.getElementById('pPrice').value;
+            if (!name || !price) return alert("请填完整");
+
+            if (currentEditId) {
+                // 执行“改”的逻辑 (PUT)
+                await fetch(`http://localhost:3000/products/${currentEditId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, price })
+                });
+                currentEditId = null; // 重置
+                document.getElementById('mainBtn').innerText = "提交到仓库";
+                document.getElementById('mainBtn').className = "btn-add";
+            } else {
+                // 执行“增”的逻辑 (POST)
+                await fetch('http://localhost:3000/products', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, price })
+                });
+            }
+
+            document.getElementById('pName').value = "";
+            document.getElementById('pPrice').value = "";
+            refreshList();
+        }
+
+        // 删除逻辑
+        async function deleteProduct(id) {
+            if (confirm("确定删除？")) {
+                await fetch(`http://localhost:3000/products/${id}`, { method: 'DELETE' });
+                refreshList();
+            }
+        }
+
+        refreshList();
+    </script>
+</body>
+</html>
