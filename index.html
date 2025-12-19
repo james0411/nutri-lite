@@ -35,7 +35,7 @@
 
         // 1. 获取列表
         async function refreshList() {
-            const res = await fetch('http://localhost:3000/products');
+            const res = await fetch('nutri-lite-production.up.railway.app');
             const data = await res.json();
             document.getElementById('displayArea').innerHTML = data.map(item => `
                 <div class="product-card">
@@ -66,7 +66,7 @@
 
             if (currentEditId) {
                 // 执行“改”的逻辑 (PUT)
-                await fetch(`http://localhost:3000/products/${currentEditId}`, {
+                await fetch(`nutri-lite-production.up.railway.app/${currentEditId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, price })
@@ -76,7 +76,7 @@
                 document.getElementById('mainBtn').className = "btn-add";
             } else {
                 // 执行“增”的逻辑 (POST)
-                await fetch('http://localhost:3000/products', {
+                await fetch('nutri-lite-production.up.railway.app', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, price })
@@ -91,7 +91,7 @@
         // 删除逻辑
         async function deleteProduct(id) {
             if (confirm("确定删除？")) {
-                await fetch(`http://localhost:3000/products/${id}`, { method: 'DELETE' });
+                await fetch(`nutri-lite-production.up.railway.app/${id}`, { method: 'DELETE' });
                 refreshList();
             }
         }
