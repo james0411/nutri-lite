@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Nutri-Lite CRM (公网版)</title>
+    <title>Nutri-Lite CRM (安全登录版)</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f4f7f6; }
         .container { max-width: 600px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
@@ -32,13 +32,23 @@
     </div>
 
     <script>
-        // ⚠️ 关键调整位置：这里必须是带 https:// 的完整 Railway 链接
-        // 请将下面的链接替换为你自己在 Railway 生成的那个 Domain
+        // 1. 配置区域
+        // ⚠️ 请确保这里是带 https:// 的完整 Railway 链接
         const API_URL = "https://nutri-lite-production.up.railway.app"; 
-
+        
         let currentEditId = null;
 
-        // 1. 获取列表 (GET)
+        // 2. 登录保护逻辑
+        let userPassword = localStorage.getItem('crm_password'); 
+
+        if (!userPassword) {
+            userPassword = prompt("请输入管理员密码以开启编辑功能：");
+            if (userPassword) {
+                localStorage.setItem('crm_password', userPassword);
+            }
+        }
+
+        // 3. 获取列表 (GET) - 通常不需要密码，方便查看
         async function refreshList() {
             try {
                 const res = await fetch(`${API_URL}/products`);
@@ -59,7 +69,7 @@
             }
         }
 
-        // 2. 准备编辑
+        // 4. 准备编辑
         function startEdit(id, name, price) {
             currentEditId = id;
             document.getElementById('pName').value = name;
@@ -69,7 +79,7 @@
             btn.classList.add("btn-update");
         }
 
-        // 3. 提交或更新 (POST / PUT)
+        // 5. 提交或更新 (POST / PUT) - 🔐 需要密码校验
         async function handleAction() {
             const name = document.getElementById('pName').value;
             const price = document.getElementById('pPrice').value;
@@ -81,7 +91,10 @@
             try {
                 const response = await fetch(url, {
                     method: method,
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': userPassword  // 👈 在这里塞入密码
+                    },
                     body: JSON.stringify({ name, price })
                 });
 
@@ -93,23 +106,39 @@
                     btn.innerText = "提交到仓库";
                     btn.classList.remove("btn-update");
                     refreshList();
+                } else if (response.status === 401) {
+                    alert("🚫 身份验证失败：密码错误！");
+                    localStorage.removeItem('crm_password'); // 清除错误密码
+                    location.reload(); // 刷新页面重新输入
                 } else {
-                    alert("操作失败");
+                    alert("操作失败，请检查后端报错");
                 }
             } catch (err) {
                 alert("网络连接错误");
             }
         }
 
-        // 4. 删除逻辑 (DELETE)
+        // 6. 删除逻辑 (DELETE) - 🔐 需要密码校验
         async function deleteProduct(id) {
-            if (confirm("确定要删除这条产品信息吗？")) {
-                await fetch(`${API_URL}/products/${id}`, { method: 'DELETE' });
-                refreshList();
+            if (!confirm("确定要删除这条产品信息吗？")) return;
+
+            try {
+                const response = await fetch(`${API_URL}/products/${id}`, { 
+                    method: 'DELETE',
+                    headers: { 'Authorization': userPassword } // 👈 删除也需要密码
+                });
+
+                if (response.ok) {
+                    refreshList();
+                } else {
+                    alert("删除失败，可能是密码错误");
+                }
+            } catch (err) {
+                alert("网络错误");
             }
         }
 
-        // 初始化加载
+        // 7. 初始化加载
         refreshList();
     </script>
 </body>
