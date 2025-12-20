@@ -2,19 +2,20 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Nutri-Lite CRM (进阶版)</title>
+    <title>Nutri-Lite CRM (公网版)</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; background: #f4f7f6; }
-        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
-        input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
-        button { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; color: white; }
-        .btn-add { background: #28a745; }
-        .btn-update { background: #ffc107; color: #333; }
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f4f7f6; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; text-align: center; }
+        .input-group { display: flex; gap: 10px; margin-bottom: 25px; }
+        input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 6px; outline: none; }
+        button { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        #mainBtn { background: #28a745; color: white; }
+        #mainBtn.btn-update { background: #ffc107; color: #333; }
         .product-card { border-bottom: 1px solid #eee; padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
-        .actions { display: flex; gap: 5px; }
-        .btn-del { background: #dc3545; font-size: 12px; }
-        .btn-edit { background: #007bff; font-size: 12px; }
+        .actions { display: flex; gap: 8px; }
+        .btn-del { background: #dc3545; color: white; font-size: 12px; }
+        .btn-edit { background: #007bff; color: white; font-size: 12px; }
     </style>
 </head>
 <body>
@@ -22,80 +23,93 @@
         <h1>Nutri-Lite 产品管理</h1>
         
         <div class="input-group">
-            <input type="text" id="pName" placeholder="品名">
-            <input type="number" id="pPrice" placeholder="价格">
-            <button id="mainBtn" class="btn-add" onclick="handleAction()">提交到仓库</button>
+            <input type="text" id="pName" placeholder="产品品名">
+            <input type="number" id="pPrice" placeholder="单价 (USD)">
+            <button id="mainBtn" onclick="handleAction()">提交到仓库</button>
         </div>
 
-        <div id="displayArea">加载中...</div>
+        <div id="displayArea">正在从云端拉取数据...</div>
     </div>
 
     <script>
-        let currentEditId = null; // 💡 记录当前正在修改哪个产品的 ID
+        // ⚠️ 关键调整位置：这里必须是带 https:// 的完整 Railway 链接
+        // 请将下面的链接替换为你自己在 Railway 生成的那个 Domain
+        const API_URL = "https://nutri-lite-production.up.railway.app"; 
 
-        // 1. 获取列表
+        let currentEditId = null;
+
+        // 1. 获取列表 (GET)
         async function refreshList() {
-            const res = await fetch('nutri-lite-production.up.railway.app');
-            const data = await res.json();
-            document.getElementById('displayArea').innerHTML = data.map(item => `
-                <div class="product-card">
-                    <div><strong>${item.name}</strong> - $${item.price}</div>
-                    <div class="actions">
-                        <button class="btn-edit" onclick="startEdit(${item.id}, '${item.name}', ${item.price})">编辑</button>
-                        <button class="btn-del" onclick="deleteProduct(${item.id})">删除</button>
+            try {
+                const res = await fetch(`${API_URL}/products`);
+                if (!res.ok) throw new Error("服务器响应失败");
+                const data = await res.json();
+                document.getElementById('displayArea').innerHTML = data.map(item => `
+                    <div class="product-card">
+                        <div><strong>${item.name}</strong> - $${item.price}/MT</div>
+                        <div class="actions">
+                            <button class="btn-edit" onclick="startEdit(${item.id}, '${item.name}', ${item.price})">编辑</button>
+                            <button class="btn-del" onclick="deleteProduct(${item.id})">删除</button>
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `).join('');
+            } catch (err) {
+                document.getElementById('displayArea').innerHTML = "无法连接到服务器，请检查 Railway 状态。";
+                console.error(err);
+            }
         }
 
-        // 2. 准备编辑：点击“编辑”按钮时，把数据填回输入框
+        // 2. 准备编辑
         function startEdit(id, name, price) {
             currentEditId = id;
             document.getElementById('pName').value = name;
             document.getElementById('pPrice').value = price;
             const btn = document.getElementById('mainBtn');
             btn.innerText = "保存修改";
-            btn.className = "btn-update";
+            btn.classList.add("btn-update");
         }
 
-        // 3. 核心逻辑：判断是“新增”还是“修改”
+        // 3. 提交或更新 (POST / PUT)
         async function handleAction() {
             const name = document.getElementById('pName').value;
             const price = document.getElementById('pPrice').value;
-            if (!name || !price) return alert("请填完整");
+            if (!name || !price) return alert("请填写完整信息");
 
-            if (currentEditId) {
-                // 执行“改”的逻辑 (PUT)
-                await fetch(`nutri-lite-production.up.railway.app/${currentEditId}`, {
-                    method: 'PUT',
+            const method = currentEditId ? 'PUT' : 'POST';
+            const url = currentEditId ? `${API_URL}/products/${currentEditId}` : `${API_URL}/products`;
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, price })
                 });
-                currentEditId = null; // 重置
-                document.getElementById('mainBtn').innerText = "提交到仓库";
-                document.getElementById('mainBtn').className = "btn-add";
-            } else {
-                // 执行“增”的逻辑 (POST)
-                await fetch('nutri-lite-production.up.railway.app', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, price })
-                });
+
+                if (response.ok) {
+                    currentEditId = null;
+                    document.getElementById('pName').value = "";
+                    document.getElementById('pPrice').value = "";
+                    const btn = document.getElementById('mainBtn');
+                    btn.innerText = "提交到仓库";
+                    btn.classList.remove("btn-update");
+                    refreshList();
+                } else {
+                    alert("操作失败");
+                }
+            } catch (err) {
+                alert("网络连接错误");
             }
-
-            document.getElementById('pName').value = "";
-            document.getElementById('pPrice').value = "";
-            refreshList();
         }
 
-        // 删除逻辑
+        // 4. 删除逻辑 (DELETE)
         async function deleteProduct(id) {
-            if (confirm("确定删除？")) {
-                await fetch(`nutri-lite-production.up.railway.app/${id}`, { method: 'DELETE' });
+            if (confirm("确定要删除这条产品信息吗？")) {
+                await fetch(`${API_URL}/products/${id}`, { method: 'DELETE' });
                 refreshList();
             }
         }
 
+        // 初始化加载
         refreshList();
     </script>
 </body>
